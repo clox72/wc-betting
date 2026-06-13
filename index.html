@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The House Always Bets — WC 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height:100vh;padding:0 12px 60px;}
+.app{max-width:820px;margin:0 auto;}
+
+/* HEADER */
+.hdr{padding:22px 0 14px;text-align:center;border-bottom:1px solid #1c3020;margin-bottom:18px;}
+.hdr-eye{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#f0c030;margin-bottom:4px;}
+.hdr-title{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:900;letter-spacing:1px;line-height:1;}
+.hdr-title span{color:#f0c030;}
+.sync-bar{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.sync-txt{font-size:11px;letter-spacing:1px;}
+.hdr-btn{font-size:11px;border:1px solid #1c3020;border-radius:5px;padding:3px 9px;cursor:pointer;background:transparent;color:#6a8e72;font-family:'Barlow',sans-serif;}
+.setup-btn{background:#f0c030;color:#080f09;border:none;font-weight:700;}
+.error-bar{font-size:11px;color:#e74c3c;margin-top:4px;text-align:center;display:none;}
+
+/* SETUP PANEL */
+.setup-panel{margin-top:12px;background:#101c12;border-radius:10px;padding:16px;border:1px solid #1c3020;text-align:left;display:none;}
+.setup-panel.open{display:block;}
+.setup-title{font-family:'Barlow Condensed',sans-serif;font-size:14px;color:#f0c030;margin-bottom:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.setup-desc{font-size:12px;color:#6a8e72;margin-bottom:10px;line-height:1.6;}
+.setup-connected{font-size:11px;color:#27ae60;margin-bottom:8px;word-break:break-all;display:none;}
+.url-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.url-inp{flex:1;background:#0a140b;border:1px solid #243828;border-radius:6px;padding:8px 10px;color:#ddeedd;font-size:12px;min-width:180px;outline:none;font-family:'Barlow',sans-serif;}
+.url-inp:focus{border-color:#f0c030;}
+.test-result{font-size:12px;padding:8px 10px;border-radius:6px;margin-bottom:8px;line-height:1.5;display:none;}
+.test-result.ok{display:block;background:#0a2a0a;border:1px solid #27ae60;color:#27ae60;}
+.test-result.err{display:block;background:#2a0a0a;border:1px solid #e74c3c;color:#e74c3c;}
+.setup-note{font-size:11px;color:#3a5a40;line-height:1.6;}
+
+/* WHO AM I */
+.who-bar{display:flex;align-items:center;gap:10px;background:#101c12;border-radius:10px;padding:10px 14px;margin-bottom:18px;flex-wrap:wrap;}
+.who-lbl{font-size:11px;color:#6a8e72;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;}
+.chips{display:flex;gap:7px;flex-wrap:wrap;}
+.chip{padding:5px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #1c3020;background:transparent;color:#6a8e72;font-family:'Barlow',sans-serif;transition:all .15s;}
+.chip:hover{border-color:#f0c030;color:#f0c030;}
+.chip.active{background:#f0c030;color:#080f09;border-color:#f0c030;}
+
+/* TABS */
+.tabs{display:flex;gap:4px;margin-bottom:18px;background:#101c12;border-radius:10px;padding:4px;}
+.tab{flex:1;padding:9px 4px;text-align:center;border-radius:8px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;border:none;background:transparent;color:#6a8e72;transition:all .15s;}
+.tab:hover{color:#ddeedd;}
+.tab.active{background:#f0c030;color:#080f09;}
+
+/* BUTTONS */
+.btn{padding:9px 18px;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border:none;transition:all .15s;}
+.btn-gold{background:#f0c030;color:#080f09;}
+.btn-gold:hover{background:#d4a820;}
+.btn-ghost{background:transparent;color:#6a8e72;border:1px solid #1c3020;}
+.btn-ghost:hover{color:#ddeedd;border-color:#3a5a40;}
+.btn-danger{background:transparent;color:#e74c3c;border:1px solid #e74c3c;}
+.btn-danger:hover{background:#e74c3c;color:#fff;}
+.btn-sm{padding:6px 13px;font-size:12px;}
+
+/* NEW BET BUTTON */
+.new-btn{width:100%;padding:13px;background:transparent;border:2px dashed #a8882a;border-radius:10px;color:#f0c030;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;margin-bottom:16px;transition:all .15s;}
+.new-btn:hover{background:#141e16;border-color:#f0c030;}
+
+/* FORM */
+.form-card{background:#101c12;border-radius:12px;padding:18px;margin-bottom:16px;border:1px solid #1c3020;}
+.form-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#f0c030;margin-bottom:14px;letter-spacing:1px;text-transform:uppercase;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-grp{display:flex;flex-direction:column;gap:5px;}
+.form-grp.full{grid-column:1/-1;}
+.lbl{font-size:11px;color:#6a8e72;text-transform:uppercase;letter-spacing:1px;}
+.inp{background:#0a140b;border:1px solid #243828;border-radius:7px;padding:9px 11px;color:#ddeedd;font-size:14px;width:100%;outline:none;font-family:'Barlow',sans-serif;transition:border-color .15s;}
+.inp:focus{border-color:#f0c030;}
+.inp option{background:#0a140b;}
+.form-actions{display:flex;gap:9px;margin-top:14px;}
+.fixtures-loading{font-size:12px;color:#6a8e72;font-style:italic;padding:6px 0;}
+
+/* BET CARD */
+.bet-card{background:#131f15;border-radius:12px;margin-bottom:14px;border:1px solid #1c3020;overflow:hidden;position:relative;}
+.bet-bar{position:absolute;left:0;top:0;bottom:0;width:4px;background:#f0c030;}
+.bet-bar.locked{background:#e67e22;}
+.bet-bar.settled{background:#444;}
+.bet-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:13px 14px 8px 19px;gap:10px;}
+.bet-match{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:900;line-height:1.15;}
+.bet-ko{font-size:11px;color:#6a8e72;margin-top:2px;}
+.badge{padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;}
+.badge-open{background:#1a3a22;color:#27ae60;}
+.badge-locked{background:#3a2a10;color:#e67e22;}
+.badge-settled{background:#222;color:#777;}
+.bet-line{padding:0 19px 9px;font-size:13px;color:#6a8e72;font-style:italic;}
+.tear{border-top:2px dashed #1c3020;margin:0 14px;}
+.bet-body{padding:11px 19px 13px;}
+.info-row{display:flex;gap:18px;margin-bottom:10px;flex-wrap:wrap;}
+.info-item{display:flex;flex-direction:column;gap:2px;}
+.info-lbl{font-size:10px;color:#6a8e72;text-transform:uppercase;letter-spacing:1px;}
+.info-val{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;}
+.info-val.gold{color:#f0c030;}
+.picks-lbl{font-size:11px;color:#6a8e72;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.picks-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.pick-chip{padding:5px 11px;border-radius:6px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:5px;border:1px solid #1c3020;background:#0a140b;}
+.pick-chip.win{border-color:#27ae60;}
+.pick-chip.win .pname{color:#27ae60;}
+.pick-chip.loss{border-color:#e74c3c;opacity:.6;}
+.pick-chip.loss .pname{color:#e74c3c;}
+.psub{color:#6a8e72;font-size:11px;}
+.my-pick-lbl{font-size:11px;color:#6a8e72;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.pick-opts{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;}
+.pick-opt{padding:7px 15px;border-radius:7px;border:1.5px solid #1c3020;background:transparent;color:#6a8e72;font-size:13px;font-weight:600;cursor:pointer;font-family:'Barlow',sans-serif;transition:all .15s;}
+.pick-opt:hover{border-color:#f0c030;color:#f0c030;}
+.pick-opt.chosen{background:#f0c030;color:#080f09;border-color:#f0c030;}
+.bet-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
+.settle-box{background:#0a140b;border-radius:8px;padding:11px;margin-top:9px;}
+.settle-lbl{font-size:12px;color:#f0c030;text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;font-family:'Barlow Condensed',sans-serif;}
+.settle-opts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px;}
+.winner-banner{padding:7px 0;color:#f0c030;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;letter-spacing:1px;}
+
+/* STANDINGS */
+.lb-wrap{background:#101c12;border-radius:12px;overflow:hidden;border:1px solid #1c3020;margin-bottom:16px;}
+.lb-hdr{padding:13px 18px;background:#0a140b;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:#f0c030;letter-spacing:2px;text-transform:uppercase;}
+.lb-row{display:flex;align-items:center;padding:11px 18px;border-bottom:1px solid #1c3020;gap:12px;}
+.lb-row:last-child{border-bottom:none;}
+.lb-rank{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:900;color:#2a4a30;width:26px;text-align:center;}
+.lb-rank.top{color:#f0c030;}
+.lb-name{flex:1;font-weight:600;font-size:15px;}
+.lb-house{font-size:11px;color:#e67e22;margin-top:2px;}
+.lb-right{text-align:right;}
+.lb-net{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:900;}
+.lb-net.pos{color:#27ae60;}
+.lb-net.neg{color:#e74c3c;}
+.lb-net.zero{color:#6a8e72;}
+.lb-rec{font-size:11px;color:#6a8e72;}
+
+/* LOG */
+.log-entry{background:#101c12;border-radius:8px;padding:10px 14px;margin-bottom:8px;border:1px solid #1c3020;}
+.log-ts{font-size:11px;color:#6a8e72;margin-bottom:3px;}
+.log-msg{font-size:13px;color:#ddeedd;}
+.log-detail{font-size:12px;color:#6a8e72;margin-top:2px;}
+.empty{text-align:center;padding:36px 16px;color:#6a8e72;font-size:14px;}
+
+@media(max-width:500px){
+  .form-grid{grid-template-columns:1fr;}
+  .bet-match{font-size:16px;}
+  .hdr-title{font-size:28px;}
+  .tabs{gap:2px;}
+  .tab{font-size:11px;padding:8px 2px;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-eye">⚽ FIFA World Cup 2026 Betting</div>
+  <div class="hdr-title">THE <span>HOUSE</span> ALWAYS BETS</div>
+  <div class="sync-bar">
+    <span class="sync-txt" id="sync-txt" style="color:#e74c3c">No sheet connected</span>
+    <button class="hdr-btn" onclick="loadShared()">↺ Refresh</button>
+    <button class="hdr-btn setup-btn" onclick="toggleSetup()">⚙ Setup</button>
+  </div>
+  <div class="error-bar" id="error-bar"></div>
+  <div class="setup-panel" id="setup-panel">
+    <div class="setup-title">Google Sheet Setup</div>
+    <div class="setup-desc">
+      Paste your Google Apps Script /exec deployment URL below. All 6 players use the same URL — bets sync through your Google Sheet in real time.
+    </div>
+    <div class="setup-connected" id="setup-connected"></div>
+    <div class="url-row">
+      <input class="url-inp" id="url-inp" placeholder="https://script.google.com/macros/s/.../exec" />
+      <button class="btn btn-gold btn-sm" onclick="saveUrl()">Save</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <button class="btn btn-ghost btn-sm" id="test-btn" onclick="testConnection()">Test Connection</button>
+    </div>
+    <div class="test-result" id="test-result"></div>
+    <div class="setup-note">
+      In Apps Script: Deploy → New deployment → Web App → Execute as: Me → Who has access: Anyone → copy the /exec URL.
+    </div>
+  </div>
+</div>
+
+<!-- WHO AM I -->
+<div class="who-bar">
+  <span class="who-lbl">You are:</span>
+  <div class="chips" id="chips"></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" id="tab-bets" onclick="setTab('bets')">Active</button>
+  <button class="tab" id="tab-settled" onclick="setTab('settled')">Settled</button>
+  <button class="tab" id="tab-board" onclick="setTab('board')">Standings</button>
+  <button class="tab" id="tab-log" onclick="setTab('log')">Log</button>
+</div>
+
+<!-- CONTENT PANELS -->
+<div id="panel-bets">
+  <button class="new-btn" id="new-btn" onclick="toggleForm()">+ Set a Line</button>
+  <div class="form-card" id="bet-form" style="display:none">
+    <div class="form-title">Post a Bet — You are the House</div>
+    <div class="form-grid">
+      <div class="form-grp full">
+        <label class="lbl">Match *</label>
+        <div class="fixtures-loading" id="fix-loading" style="display:none">Loading FIFA World Cup fixtures...</div>
+        <select class="inp" id="f-match" onchange="onMatchChange()" style="display:none">
+          <option value="">Select a match</option>
+          <option value="__custom__">Enter manually</option>
+        </select>
+        <input class="inp" id="f-custom" style="display:none;margin-top:7px" placeholder="e.g. Brazil vs Argentina" />
+      </div>
+      <div class="form-grp full">
+        <label class="lbl">Bet / Line *</label>
+        <input class="inp" id="f-bet-type" placeholder="e.g. Who scores first? Over 2.5 goals?" />
+      </div>
+      <div class="form-grp">
+        <label class="lbl">Option A *</label>
+        <input class="inp" id="f-opt1" placeholder="e.g. Yes, Over, Brazil" />
+      </div>
+      <div class="form-grp">
+        <label class="lbl">Option B (optional)</label>
+        <input class="inp" id="f-opt2" placeholder="e.g. No, Under, Argentina" />
+      </div>
+      <div class="form-grp">
+        <label class="lbl">Wager per person ($) *</label>
+        <input class="inp" type="number" min="1" id="f-amount" placeholder="e.g. 10" />
+      </div>
+      <div class="form-grp">
+        <label class="lbl">Pick Deadline (optional)</label>
+        <input class="inp" type="datetime-local" id="f-deadline" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-gold" onclick="createBet()">Post Bet</button>
+      <button class="btn btn-ghost" onclick="toggleForm()">Cancel</button>
+    </div>
+  </div>
+  <div id="bets-list"></div>
+</div>
+
+<div id="panel-settled" style="display:none"><div id="settled-list"></div></div>
+<div id="panel-board" style="display:none">
+  <div class="lb-wrap"><div class="lb-hdr">🏆 Standings</div><div id="lb-rows"></div></div>
+</div>
+<div id="panel-log" style="display:none"><div id="log-list"></div></div>
+
+</div><!-- end .app -->
+
+<script>
+var MEMBERS = ["Jaya","S2K","Koko","Manjo","Guo","Parag"];
+var STATUS  = {OPEN:"open", LOCKED:"locked", SETTLED:"settled"};
+
+var me         = localStorage.getItem("wc-me") || null;
+var scriptUrl  = localStorage.getItem("wc-script-url") || "";
+var bets       = [];
+var log        = [];
+var fixtures   = [];
+var currentTab = "bets";
+var showForm   = false;
+var settleTarget  = null;
+var pendingWinner = {};
+var syncInterval  = null;
+var fixturesLoaded = false;
+
+/* ── Utilities ─────────────────────────────────────────────── */
+function gid(id){ return document.getElementById(id); }
+function genId(){ return Math.random().toString(36).slice(2,9); }
+function tsLabel(ts){
+  return new Date(ts).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+function toLocalDateStr(d){
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+}
+
+/* ── HTTP ──────────────────────────────────────────────────── */
+async function wcGet(url){
+  var r = await fetch(url, {redirect:"follow"});
+  if(!r.ok) throw new Error("HTTP "+r.status+" — check Apps Script deployment");
+  var d = await r.json();
+  if(d && d.error) throw new Error(d.error);
+  return d;
+}
+async function wcPost(url, body){
+  var r = await fetch(url, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body),
+    redirect:"follow"
+  });
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  var d = await r.json();
+  if(d && d.error) throw new Error(d.error);
+  return d;
+}
+
+/* ── Sync status ───────────────────────────────────────────── */
+function setSyncStatus(status, msg){
+  var el = gid("sync-txt"), eb = gid("error-bar");
+  var colors = {ok:"#27ae60", loading:"#6a8e72", saving:"#f0c030", error:"#e74c3c", none:"#e74c3c"};
+  var labels = {ok:"✓ synced", loading:"⟳ syncing...", saving:"⟳ saving...", error:"⚠ sync error", none:"No sheet connected — tap Setup"};
+  el.style.color = colors[status];
+  el.textContent = msg || labels[status];
+  if(status==="error" && msg){ eb.style.display="block"; eb.textContent=msg; }
+  else { eb.style.display="none"; }
+}
+
+/* ── Load / Dispatch ───────────────────────────────────────── */
+async function loadShared(){
+  if(!scriptUrl){ setSyncStatus("none"); return; }
+  setSyncStatus("loading");
+  try {
+    var data = await wcGet(scriptUrl);
+    bets = (data.bets||[]).map(function(b){
+      if(!b.selections || typeof b.selections !== "object") b.selections = {};
+      b.amount = Number(b.amount)||0;
+      return b;
+    });
+    log = data.log||[];
+    var t = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    setSyncStatus("ok","✓ synced "+t);
+    render();
+  } catch(e){
+    setSyncStatus("error", e.message);
+  }
+}
+
+async function dispatch(body, optimisticBets, optimisticLog){
+  if(optimisticBets) bets = optimisticBets;
+  if(optimisticLog)  log  = optimisticLog;
+  render();
+  if(!scriptUrl) return;
+  setSyncStatus("saving");
+  try {
+    await wcPost(scriptUrl, body);
+    var t = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    setSyncStatus("ok","✓ synced "+t);
+    setTimeout(loadShared, 800);
+  } catch(e){
+    setSyncStatus("error", e.message);
+  }
+}
+
+/* ── Setup ─────────────────────────────────────────────────── */
+function toggleSetup(){
+  var p = gid("setup-panel");
+  p.classList.toggle("open");
+  var sc = gid("setup-connected");
+  if(scriptUrl){ sc.style.display="block"; sc.textContent="Connected: "+scriptUrl.slice(0,60)+"..."; }
+  else { sc.style.display="none"; }
+}
+
+function saveUrl(){
+  var v = gid("url-inp").value.trim();
+  if(!v) return;
+  localStorage.setItem("wc-script-url", v);
+  scriptUrl = v;
+  gid("setup-panel").classList.remove("open");
+  gid("test-result").className="test-result";
+  startPolling();
+  loadShared();
+}
+
+async function testConnection(){
+  var url = gid("url-inp").value.trim() || scriptUrl;
+  if(!url){ showTestResult(false,"Enter a URL first"); return; }
+  gid("test-btn").textContent = "Testing...";
+  try {
+    var d = await wcGet(url);
+    if(Array.isArray(d.bets)) showTestResult(true,"Connected! "+d.bets.length+" bet(s) in sheet.");
+    else showTestResult(false,"Unexpected response: "+JSON.stringify(d).slice(0,120));
+  } catch(e){ showTestResult(false,e.message); }
+  gid("test-btn").textContent = "Test Connection";
+}
+
+function showTestResult(ok, msg){
+  var el = gid("test-result");
+  el.className = "test-result "+(ok?"ok":"err");
+  el.textContent = (ok?"✓ ":"✗ ")+msg;
+}
+
+/* ── Identity ──────────────────────────────────────────────── */
+function renderChips(){
+  var c = gid("chips"); c.innerHTML="";
+  MEMBERS.forEach(function(m){
+    var b = document.createElement("button");
+    b.className="chip"+(me===m?" active":"");
+    b.textContent = m;
+    b.onclick = function(){ selectMe(m); };
+    c.appendChild(b);
+  });
+}
+
+function selectMe(name){
+  if(name===me) return;
+  if(me && !confirm("Switch from "+me+" to "+name+"?\nMake sure you are actually "+name+".")) return;
+  me = name;
+  localStorage.setItem("wc-me", name);
+  renderChips();
+  render();
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+function setTab(tab){
+  currentTab = tab;
+  ["bets","settled","board","log"].forEach(function(t){
+    gid("panel-"+t).style.display = t===tab?"block":"none";
+    var tb = gid("tab-"+t);
+    if(tb) tb.classList.toggle("active", t===tab);
+  });
+  render();
+}
+
+function updateTabLabels(){
+  var open = bets.filter(function(b){return b.status===STATUS.OPEN;}).length;
+  var locked = bets.filter(function(b){return b.status===STATUS.LOCKED;}).length;
+  var settled = bets.filter(function(b){return b.status===STATUS.SETTLED;}).length;
+  gid("tab-bets").textContent    = "Active ("+(open+locked)+")";
+  gid("tab-settled").textContent = "Settled ("+settled+")";
+}
+
+/* ── Fixture fetch ─────────────────────────────────────────── */
+function extractJsonArray(text){
+  var results=[], depth=0, start=-1;
+  for(var i=0;i<text.length;i++){
+    if(text[i]==="["){if(depth===0)start=i;depth++;}
+    else if(text[i]==="]"){depth--;if(depth===0&&start!==-1){try{var p=JSON.parse(text.slice(start,i+1));if(Array.isArray(p))results.push(p);}catch(e){}start=-1;}}
+  }
+  results.sort(function(a,b){return b.filter(function(x){return x&&x.home;}).length-a.filter(function(x){return x&&x.home;}).length;});
+  return results[0]||[];
+}
+
+function loadFixtures(){
+  if(fixturesLoaded) return;
+  var now = new Date();
+  var dates=[toLocalDateStr(new Date(now-3*3600000)),toLocalDateStr(now),toLocalDateStr(new Date(now+24*3600000)),toLocalDateStr(new Date(now+48*3600000))];
+  dates=dates.filter(function(d,i){return dates.indexOf(d)===i;});
+
+  gid("fix-loading").style.display="block";
+  gid("f-match").style.display="none";
+
+  fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      model:"claude-sonnet-4-20250514", max_tokens:2000,
+      tools:[{type:"web_search_20250305",name:"web_search"}],
+      system:"You are a FIFA World Cup 2026 fixture assistant. Search for FIFA World Cup 2026 matches on "+dates.join(", ")+". End your response with a JSON array only. Format: [{\"home\":\"Team\",\"away\":\"Team\",\"kickoff\":\"HH:MM\",\"date\":\"YYYY-MM-DD\",\"competition\":\"FIFA World Cup 2026\"}]. Only FIFA World Cup 2026. If none, end with: []",
+      messages:[{role:"user",content:"FIFA World Cup 2026 matches on "+dates.join(", ")+"? End with JSON array only."}]
+    })
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var text=(data.content||[]).map(function(b){return b.type==="text"?b.text:JSON.stringify(b);}).join("\n");
+    var nowMs=Date.now();
+    fixtures=extractJsonArray(text).filter(function(f){
+      if(!f.home||!f.date||!f.kickoff)return false;
+      var p=f.kickoff.split(":");
+      var koMs=new Date(f.date+"T"+String(Number(p[0])).padStart(2,"0")+":"+String(Number(p[1]||0)).padStart(2,"0")+":00").getTime();
+      return koMs>=nowMs-3*3600000&&koMs<=nowMs+48*3600000;
+    });
+    populateFixtureSelect();
+    fixturesLoaded=true;
+  })
+  .catch(function(){
+    populateFixtureSelect();
+    fixturesLoaded=true;
+  });
+}
+
+function populateFixtureSelect(){
+  gid("fix-loading").style.display="none";
+  var sel=gid("f-match"); sel.style.display="block";
+  while(sel.options.length>1) sel.remove(1);
+  if(fixtures.length>0){
+    var grp=document.createElement("optgroup"); grp.label="FIFA World Cup 2026";
+    fixtures.forEach(function(f){
+      var k=f.home+"|"+f.away+"|"+f.date;
+      grp.appendChild(new Option(f.home+" vs "+f.away+" · "+f.kickoff+" · "+f.date,k));
+    });
+    sel.insertBefore(grp,sel.options[sel.options.length>0?sel.options.length-0:0]);
+    sel.appendChild(new Option("Enter manually","__custom__"));
+  } else {
+    sel.appendChild(new Option("No fixtures found — enter manually","__custom__"));
+    gid("f-custom").style.display="block";
+  }
+}
+
+function onMatchChange(){
+  gid("f-custom").style.display = gid("f-match").value==="__custom__"?"block":"none";
+}
+
+/* ── Bet actions ───────────────────────────────────────────── */
+function toggleForm(){
+  showForm=!showForm;
+  gid("bet-form").style.display=showForm?"block":"none";
+  gid("new-btn").textContent=showForm?"✕ Cancel":"+ Set a Line";
+  if(showForm) loadFixtures();
+}
+
+function createBet(){
+  if(!me){alert("Choose who you are first!");return;}
+  var matchKey=gid("f-match").value, match="", kickoff="";
+  if(matchKey==="__custom__"){
+    match=gid("f-custom").value.trim();
+  } else {
+    var f=fixtures.find(function(x){return (x.home+"|"+x.away+"|"+x.date)===matchKey;});
+    if(f){match=f.home+" vs "+f.away;kickoff=f.kickoff+" · "+f.date+" · FIFA WC 2026";}
+  }
+  var betType=gid("f-bet-type").value.trim(), opt1=gid("f-opt1").value.trim(), opt2=gid("f-opt2").value.trim();
+  var amount=parseFloat(gid("f-amount").value), deadline=gid("f-deadline").value;
+  if(!match||!betType||!opt1||!amount){alert("Fill in all required fields.");return;}
+  var bet={id:genId(),house:me,match:match,kickoff:kickoff,betType:betType,option1:opt1,option2:opt2,amount:amount,deadline:deadline,status:STATUS.OPEN,createdAt:Date.now(),selections:{},winner:null};
+  var nb=[bet].concat(bets);
+  var le={id:genId(),ts:Date.now(),msg:me+" posted a bet",detail:'"'+betType+'" on '+match+' · $'+amount+'/person'};
+  dispatch({action:"CREATE_BET",bet:bet,logId:le.id,ts:le.ts,logMsg:le.msg,logDetail:le.detail},nb,[le].concat(log));
+  ["f-match","f-custom","f-bet-type","f-opt1","f-opt2","f-amount","f-deadline"].forEach(function(id){gid(id).value="";});
+  gid("f-custom").style.display="none";
+  toggleForm();
+}
+
+function placePick(betId,option){
+  if(!me){alert("Choose who you are first!");return;}
+  var bet=bets.find(function(b){return b.id===betId;});
+  if(!bet||bet.status!==STATUS.OPEN||me===bet.house)return;
+  var ns=Object.assign({},bet.selections); ns[me]=option;
+  var nb=bets.map(function(b){return b.id===betId?Object.assign({},b,{selections:ns}):b;});
+  var le={id:genId(),ts:Date.now(),msg:me+' picked "'+option+'"',detail:'"'+bet.betType+'" on '+bet.match};
+  dispatch({action:"PLACE_PICK",betId:betId,player:me,pick:option,ts:le.ts,logId:le.id,logMsg:le.msg,logDetail:le.detail},nb,[le].concat(log));
+}
+
+function lockBet(betId){
+  var bet=bets.find(function(b){return b.id===betId;});
+  var nb=bets.map(function(b){return b.id===betId?Object.assign({},b,{status:STATUS.LOCKED}):b;});
+  var le={id:genId(),ts:Date.now(),msg:me+" locked picks",detail:'"'+bet.betType+'" on '+bet.match};
+  dispatch({action:"LOCK_BET",betId:betId,logId:le.id,ts:le.ts,logMsg:le.msg,logDetail:le.detail},nb,[le].concat(log));
+}
+
+function settleBet(betId){
+  var winner=pendingWinner[betId]; if(!winner)return;
+  var bet=bets.find(function(b){return b.id===betId;});
+  var nb=bets.map(function(b){return b.id===betId?Object.assign({},b,{status:STATUS.SETTLED,winner:winner}):b;});
+  var won=Object.entries(bet.selections).filter(function(e){return e[0]!==bet.house&&e[1]===winner;}).map(function(e){return e[0];});
+  var lost=Object.entries(bet.selections).filter(function(e){return e[0]!==bet.house&&e[1]!==winner;}).map(function(e){return e[0];});
+  var le={id:genId(),ts:Date.now(),msg:me+' settled — winner: "'+winner+'"',detail:bet.match+' · Won: '+(won.join(", ")||"none")+' · Lost: '+(lost.join(", ")||"none")+' · $'+bet.amount+'/person'};
+  dispatch({action:"SETTLE_BET",betId:betId,winner:winner,logId:le.id,ts:le.ts,logMsg:le.msg,logDetail:le.detail},nb,[le].concat(log));
+  settleTarget=null; pendingWinner={};
+}
+
+function deleteBet(betId){
+  if(!confirm("Delete this bet?"))return;
+  var bet=bets.find(function(b){return b.id===betId;});
+  var nb=bets.filter(function(b){return b.id!==betId;});
+  var le={id:genId(),ts:Date.now(),msg:me+" deleted a bet",detail:'"'+bet.betType+'" on '+bet.match};
+  dispatch({action:"DELETE_BET",betId:betId,logId:le.id,ts:le.ts,logMsg:le.msg,logDetail:le.detail},nb,[le].concat(log));
+}
+
+/* ── Render ────────────────────────────────────────────────── */
+function renderBetCard(bet,container){
+  var isHouse=me===bet.house, myPick=me?bet.selections[me]:null, isSettle=settleTarget===bet.id;
+  var opts=bet.option2?[bet.option1,bet.option2]:[bet.option1];
+  var sc=bet.status===STATUS.OPEN?"":"bet-bar "+(bet.status===STATUS.LOCKED?"locked":"settled");
+
+  var card=document.createElement("div"); card.className="bet-card";
+  var bar=document.createElement("div"); bar.className="bet-bar"+(bet.status!==STATUS.OPEN?" "+bet.status:""); card.appendChild(bar);
+
+  var hdr=document.createElement("div"); hdr.className="bet-hdr";
+  var left=document.createElement("div");
+  left.innerHTML='<div class="bet-match">'+esc(bet.match)+'</div>'+(bet.kickoff?'<div class="bet-ko">'+esc(bet.kickoff)+'</div>':'');
+  var bdg=document.createElement("span");
+  bdg.className="badge badge-"+bet.status;
+  bdg.textContent=bet.status===STATUS.OPEN?"Open":bet.status===STATUS.LOCKED?"Locked":"Settled";
+  hdr.appendChild(left); hdr.appendChild(bdg); card.appendChild(hdr);
+
+  var bl=document.createElement("div"); bl.className="bet-line"; bl.textContent='"'+bet.betType+'"'; card.appendChild(bl);
+  var t=document.createElement("div"); t.className="tear"; card.appendChild(t);
+  var body=document.createElement("div"); body.className="bet-body";
+
+  // Info
+  var ir=document.createElement("div"); ir.className="info-row";
+  [{l:"House",v:bet.house},{l:"Wager",v:"$"+bet.amount+"/person",g:true},{l:"Picks In",v:Object.keys(bet.selections).length}].forEach(function(x){
+    var d=document.createElement("div"); d.className="info-item";
+    d.innerHTML='<div class="info-lbl">'+x.l+'</div><div class="info-val'+(x.g?" gold":"")+'">'+x.v+'</div>';
+    ir.appendChild(d);
+  });
+  if(bet.deadline){
+    var dd=document.createElement("div"); dd.className="info-item";
+    dd.innerHTML='<div class="info-lbl">Deadline</div><div class="info-val" style="font-size:13px">'+new Date(bet.deadline).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})+'</div>';
+    ir.appendChild(dd);
+  }
+  body.appendChild(ir);
+
+  // Picks
+  var selKeys=MEMBERS.filter(function(m){return m!==bet.house&&bet.selections[m];});
+  if(selKeys.length>0){
+    var pl=document.createElement("div"); pl.className="picks-lbl"; pl.textContent="Picks (all vs "+bet.house+")"; body.appendChild(pl);
+    var pg=document.createElement("div"); pg.className="picks-grid";
+    selKeys.forEach(function(m){
+      var pick=bet.selections[m], won=bet.status===STATUS.SETTLED&&pick===bet.winner, lost=bet.status===STATUS.SETTLED&&pick!==bet.winner;
+      var c=document.createElement("div"); c.className="pick-chip"+(won?" win":lost?" loss":"");
+      c.innerHTML='<span class="pname">'+esc(m)+'</span><span class="psub">→'+esc(pick)+'</span>'+(won?"<span>✓</span>":lost?"<span>✗</span>":"");
+      pg.appendChild(c);
+    });
+    body.appendChild(pg);
+  }
+
+  if(bet.status===STATUS.SETTLED){
+    var wb=document.createElement("div"); wb.className="winner-banner"; wb.textContent="Winning pick: "+bet.winner; body.appendChild(wb);
+  }
+
+  if(me&&!isHouse&&bet.status===STATUS.OPEN){
+    var mpl=document.createElement("div"); mpl.className="my-pick-lbl"; mpl.textContent="Your pick (against "+bet.house+")"; body.appendChild(mpl);
+    var po=document.createElement("div"); po.className="pick-opts";
+    opts.forEach(function(opt){
+      var b=document.createElement("button"); b.className="pick-opt"+(myPick===opt?" chosen":""); b.textContent=opt;
+      b.onclick=(function(o){return function(){placePick(bet.id,o);};})(opt);
+      po.appendChild(b);
+    });
+    body.appendChild(po);
+  }
+
+  if(isHouse){
+    var ba=document.createElement("div"); ba.className="bet-actions";
+    if(bet.status===STATUS.OPEN){
+      var lb=document.createElement("button"); lb.className="btn btn-ghost btn-sm"; lb.textContent="Lock Picks";
+      lb.onclick=(function(id){return function(){lockBet(id);};})(bet.id); ba.appendChild(lb);
+    }
+    if(bet.status===STATUS.OPEN||bet.status===STATUS.LOCKED){
+      var sb=document.createElement("button"); sb.className="btn btn-gold btn-sm"; sb.textContent=isSettle?"Cancel":"Settle Bet";
+      sb.onclick=(function(id,iS){return function(){settleTarget=iS?null:id;pendingWinner={};render();};})(bet.id,isSettle); ba.appendChild(sb);
+    }
+    if(bet.status===STATUS.OPEN){
+      var db=document.createElement("button"); db.className="btn btn-danger btn-sm"; db.textContent="Delete";
+      db.onclick=(function(id){return function(){deleteBet(id);};})(bet.id); ba.appendChild(db);
+    }
+    body.appendChild(ba);
+  }
+
+  if(isSettle&&isHouse){
+    var sbox=document.createElement("div"); sbox.className="settle-box";
+    var slbl=document.createElement("div"); slbl.className="settle-lbl"; slbl.textContent="Who won?"; sbox.appendChild(slbl);
+    var so=document.createElement("div"); so.className="settle-opts";
+    opts.forEach(function(opt){
+      var b=document.createElement("button");
+      b.className="btn btn-sm"+(pendingWinner[bet.id]===opt?" btn-gold":" btn-ghost");
+      b.textContent=opt;
+      b.onclick=(function(o,id){return function(){pendingWinner[id]=o;render();};})(opt,bet.id);
+      so.appendChild(b);
+    });
+    sbox.appendChild(so);
+    if(pendingWinner[bet.id]){
+      var cb=document.createElement("button"); cb.className="btn btn-gold btn-sm";
+      cb.textContent='Confirm — "'+pendingWinner[bet.id]+'" wins';
+      cb.onclick=(function(id){return function(){settleBet(id);};})(bet.id); sbox.appendChild(cb);
+    }
+    body.appendChild(sbox);
+  }
+
+  card.appendChild(body);
+  container.appendChild(card);
+}
+
+function esc(s){ var d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+
+function render(){
+  updateTabLabels();
+  var open=bets.filter(function(b){return b.status===STATUS.OPEN;}), locked=bets.filter(function(b){return b.status===STATUS.LOCKED;}), settled=bets.filter(function(b){return b.status===STATUS.SETTLED;});
+
+  var bl=gid("bets-list"); bl.innerHTML="";
+  var active=open.concat(locked);
+  if(!active.length) bl.innerHTML='<div class="empty">No active bets — someone set a line!</div>';
+  else active.forEach(function(b){renderBetCard(b,bl);});
+
+  var sl=gid("settled-list"); sl.innerHTML="";
+  if(!settled.length) sl.innerHTML='<div class="empty">No settled bets yet.</div>';
+  else settled.forEach(function(b){renderBetCard(b,sl);});
+
+  // Standings
+  var stats=MEMBERS.reduce(function(a,m){a[m]={wins:0,losses:0,net:0,betsHosted:0,asHouseNet:0};return a;},{});
+  settled.forEach(function(b){
+    stats[b.house].betsHosted++;
+    Object.entries(b.selections).forEach(function(e){
+      var player=e[0],pick=e[1]; if(player===b.house)return;
+      if(pick===b.winner){stats[player].wins++;stats[player].net+=b.amount;stats[b.house].net-=b.amount;stats[b.house].asHouseNet-=b.amount;}
+      else{stats[player].losses++;stats[player].net-=b.amount;stats[b.house].net+=b.amount;stats[b.house].asHouseNet+=b.amount;}
+    });
+  });
+  var ranked=MEMBERS.slice().sort(function(a,b){return stats[b].net-stats[a].net;});
+  var lbr=gid("lb-rows"); lbr.innerHTML="";
+  ranked.forEach(function(m,i){
+    var s=stats[m], nc=s.net>0?"pos":s.net<0?"neg":"zero";
+    var nt=s.net===0?"—":(s.net>0?"+":"")+"$"+Math.abs(s.net).toFixed(2);
+    var row=document.createElement("div"); row.className="lb-row";
+    row.innerHTML='<div class="lb-rank'+(i<3?" top":"")+'">'+( i+1)+'</div>'+
+      '<div class="lb-name">'+esc(m)+(m===me?" 👤":"")+
+      (s.betsHosted>0?'<div class="lb-house">Hosted '+s.betsHosted+' bet'+(s.betsHosted>1?"s":"")+' · house: '+(s.asHouseNet>=0?"+":"-")+"$"+Math.abs(s.asHouseNet).toFixed(2)+'</div>':'')+
+      '</div><div class="lb-right"><div class="lb-net '+nc+'">'+nt+'</div><div class="lb-rec">'+s.wins+'W – '+s.losses+'L</div></div>';
+    lbr.appendChild(row);
+  });
+
+  // Log
+  var ll=gid("log-list"); ll.innerHTML="";
+  if(!log.length) ll.innerHTML='<div class="empty">No activity yet.</div>';
+  else log.forEach(function(e,i){
+    var d=document.createElement("div"); d.className="log-entry";
+    d.innerHTML='<div class="log-ts">'+tsLabel(e.ts)+'</div><div class="log-msg">'+esc(e.msg||"")+'</div>'+(e.detail?'<div class="log-detail">'+esc(e.detail)+'</div>':"");
+    ll.appendChild(d);
+  });
+}
+
+function startPolling(){
+  if(syncInterval) clearInterval(syncInterval);
+  syncInterval=setInterval(loadShared,12000);
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+renderChips();
+if(scriptUrl){
+  var sc=gid("setup-connected"); sc.style.display="block"; sc.textContent="Connected: "+scriptUrl.slice(0,60)+"...";
+  loadShared();
+  startPolling();
+} else {
+  setSyncStatus("none");
+}
+render();
+</script>
+</body>
+</html>

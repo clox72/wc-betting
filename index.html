@@ -416,7 +416,10 @@ async function loadShared(){
     setSyncStatus("ok","✓ synced "+t);
     checkForNotifications(bets);
     render();
-    if(showForm) populateFixtureSelect();
+    // Only repopulate the fixture dropdown if no selection has been made yet —
+    // once the user picks a match (or "Enter manually"), it stays put until
+    // they submit, cancel, or change it themselves.
+    if(showForm && !gid("f-match").value) populateFixtureSelect();
     checkAutoLock();
   } catch(e){
     setSyncStatus("error", e.message);
@@ -543,11 +546,14 @@ function populateFixtureSelect(){
   gid("fix-loading").style.display="none";
   var sel=gid("f-match"); sel.style.display="block";
   while(sel.options.length>1) sel.remove(1);
+  // sel.remove() only removes <option> elements — leftover empty <optgroup>
+  // containers (e.g. "Schedule") must be removed separately or they pile up.
+  Array.prototype.slice.call(sel.querySelectorAll("optgroup")).forEach(function(g){ g.remove(); });
 
   var nowMs = Date.now();
   var upcoming = scheduleFixtures
     .map(function(f,i){ return {f:f, idx:i, ts:new Date(f.datetime).getTime()}; })
-    .filter(function(x){ return !isNaN(x.ts) && x.ts >= nowMs - 3*3600000; })
+    .filter(function(x){ return !isNaN(x.ts) && x.ts >= nowMs - 3*3600000 && x.ts <= nowMs + 48*3600000; })
     .sort(function(a,b){ return a.ts-b.ts; });
 
   if(upcoming.length>0){
@@ -564,6 +570,7 @@ function populateFixtureSelect(){
     gid("f-custom").style.display="block";
   }
 }
+
 
 function onMatchChange(){
   gid("f-custom").style.display = gid("f-match").value==="__custom__"?"block":"none";

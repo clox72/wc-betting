@@ -10,7 +10,7 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height:100vh;padding:0 12px 60px;}
-.app{max-width:820px;margin:0 auto;}
+.app{max-width:820px;margin:0 auto;position:relative;}
 
 /* HEADER */
 .hdr{padding:22px 0 14px;text-align:center;border-bottom:1px solid #1c3020;margin-bottom:18px;}
@@ -22,6 +22,12 @@ body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height
 .hdr-btn{font-size:11px;border:1px solid #1c3020;border-radius:5px;padding:3px 9px;cursor:pointer;background:transparent;color:#6a8e72;font-family:'Barlow',sans-serif;}
 .setup-btn{background:#f0c030;color:#080f09;border:none;font-weight:700;}
 .error-bar{font-size:11px;color:#e74c3c;margin-top:4px;text-align:center;display:none;}
+
+/* TOAST */
+.toast-wrap{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;flex-direction:column;gap:8px;align-items:center;width:calc(100% - 24px);max-width:480px;pointer-events:none;}
+.toast{background:#101c12;border:1px solid #f0c030;border-radius:10px;padding:10px 16px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-size:13px;color:#ddeedd;opacity:0;transform:translateY(-10px);transition:opacity .25s,transform .25s;max-width:100%;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;color:#f0c030;letter-spacing:1px;text-transform:uppercase;font-size:12px;margin-bottom:2px;}
 
 /* SETUP PANEL */
 .setup-panel{margin-top:12px;background:#101c12;border-radius:10px;padding:16px;border:1px solid #1c3020;text-align:left;display:none;}
@@ -44,6 +50,10 @@ body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height
 .chip{padding:5px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #1c3020;background:transparent;color:#6a8e72;font-family:'Barlow',sans-serif;transition:all .15s;}
 .chip:hover{border-color:#f0c030;color:#f0c030;}
 .chip.active{background:#f0c030;color:#080f09;border-color:#f0c030;}
+.herd-btn{padding:5px 13px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid #1c3020;background:transparent;color:#6a8e72;font-family:'Barlow',sans-serif;transition:all .15s;margin-left:auto;}
+.herd-btn:hover{border-color:#27ae60;color:#27ae60;}
+.herd-btn.on{background:#27ae60;color:#080f09;border-color:#27ae60;}
+.herd-hint{font-size:11px;color:#6a8e72;margin-top:6px;}
 
 /* TABS */
 .tabs{display:flex;gap:4px;margin-bottom:18px;background:#101c12;border-radius:10px;padding:4px;}
@@ -151,6 +161,7 @@ body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height
 </head>
 <body>
 <div class="app">
+<div class="toast-wrap" id="toast-wrap"></div>
 
 <!-- HEADER -->
 <div class="hdr">
@@ -159,6 +170,7 @@ body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height
   <div class="sync-bar">
     <span class="sync-txt" id="sync-txt" style="color:#e74c3c">No sheet connected</span>
     <button class="hdr-btn" onclick="loadShared()">↺ Refresh</button>
+    <button class="hdr-btn" id="notif-btn" onclick="requestNotifPermission()">🔔 Notifications</button>
     <button class="hdr-btn setup-btn" onclick="toggleSetup()">⚙ Setup</button>
   </div>
   <div class="error-bar" id="error-bar"></div>
@@ -186,6 +198,7 @@ body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height
 <div class="who-bar">
   <span class="who-lbl">You are:</span>
   <div class="chips" id="chips"></div>
+  <button class="herd-btn" id="herd-btn" onclick="toggleHerd()" style="display:none">🐑 Herd: OFF</button>
 </div>
 
 <!-- TABS -->
@@ -204,7 +217,7 @@ body{background:#080f09;color:#ddeedd;font-family:'Barlow',sans-serif;min-height
     <div class="form-grid">
       <div class="form-grp full">
         <label class="lbl">Match *</label>
-        <div class="fixtures-loading" id="fix-loading" style="display:none">Loading FIFA World Cup fixtures...</div>
+        <div class="fixtures-loading" id="fix-loading" style="display:none">Loading schedule...</div>
         <select class="inp" id="f-match" onchange="onMatchChange()" style="display:none">
           <option value="">Select a match</option>
           <option value="__custom__">Enter manually</option>
@@ -256,13 +269,91 @@ var me         = localStorage.getItem("wc-me") || null;
 var scriptUrl  = localStorage.getItem("wc-script-url") || "";
 var bets       = [];
 var log        = [];
-var fixtures   = [];
+var scheduleFixtures = [];
 var currentTab = "bets";
 var showForm   = false;
 var settleTarget  = null;
 var pendingWinner = {};
 var syncInterval  = null;
-var fixturesLoaded = false;
+var prevBetsById  = null; // snapshot for change detection (null until first load)
+var herdSettings  = {};   // {player: true/false}
+var notifPermission = (typeof Notification !== "undefined") ? Notification.permission : "unsupported";
+
+/* ── Notifications ─────────────────────────────────────────── */
+function updateNotifBtn(){
+  var b = gid("notif-btn");
+  if(notifPermission==="granted"){ b.textContent="🔔 On"; b.style.color="#27ae60"; }
+  else if(notifPermission==="denied"){ b.textContent="🔕 Blocked"; b.style.color="#e74c3c"; }
+  else if(notifPermission==="unsupported"){ b.style.display="none"; }
+  else { b.textContent="🔔 Notifications"; b.style.color="#6a8e72"; }
+}
+
+function requestNotifPermission(){
+  if(typeof Notification==="undefined") return;
+  Notification.requestPermission().then(function(p){
+    notifPermission=p;
+    updateNotifBtn();
+    if(p==="granted") showToast("Notifications enabled","You'll be alerted for new bets and settlements.");
+  });
+}
+
+function showToast(title, body){
+  var wrap = gid("toast-wrap");
+  var t = document.createElement("div");
+  t.className = "toast";
+  t.innerHTML = '<div class="toast-title">'+esc(title)+'</div><div>'+esc(body)+'</div>';
+  wrap.appendChild(t);
+  requestAnimationFrame(function(){ t.classList.add("show"); });
+  setTimeout(function(){
+    t.classList.remove("show");
+    setTimeout(function(){ t.remove(); }, 300);
+  }, 6000);
+}
+
+function notify(title, body){
+  showToast(title, body);
+  if(notifPermission==="granted"){
+    try { new Notification(title, {body:body}); } catch(e){}
+  }
+}
+
+// Compares new bets against the previous snapshot and fires notifications
+// for newly-posted bets and newly-settled bets (skipping self-actions).
+function checkForNotifications(newBets){
+  if(prevBetsById===null){
+    // First load — establish baseline without notifying
+    prevBetsById = {};
+    newBets.forEach(function(b){ prevBetsById[b.id]=b.status; });
+    return;
+  }
+  newBets.forEach(function(b){
+    var prevStatus = prevBetsById[b.id];
+    if(prevStatus===undefined){
+      if(b.status===STATUS.OPEN && b.house!==me){
+        notify("New bet posted!", b.house+' set a line: "'+b.betType+'" on '+b.match+' · $'+b.amount+'/person');
+      }
+    } else if(prevStatus!==STATUS.SETTLED && b.status===STATUS.SETTLED){
+      if(b.house!==me){
+        notify("Bet settled", b.match+' — winner: "'+b.winner+'"');
+      }
+    }
+    prevBetsById[b.id]=b.status;
+  });
+}
+
+// Auto-locks any open bet whose deadline has passed.
+function checkAutoLock(){
+  var nowMs=Date.now();
+  bets.filter(function(b){
+    return b.status===STATUS.OPEN && b.deadline && new Date(b.deadline).getTime()<=nowMs;
+  }).forEach(function(b){
+    var nb=bets.map(function(x){ return x.id===b.id?Object.assign({},x,{status:STATUS.LOCKED}):x; });
+    bets=nb;
+    if(prevBetsById) prevBetsById[b.id]=STATUS.LOCKED;
+    var le={id:genId(),ts:Date.now(),msg:"Auto-locked (deadline passed)",detail:'"'+b.betType+'" on '+b.match};
+    dispatch({action:"LOCK_BET",betId:b.id,logId:le.id,ts:le.ts,logMsg:le.msg,logDetail:le.detail},null,[le].concat(log));
+  });
+}
 
 /* ── Utilities ─────────────────────────────────────────────── */
 function gid(id){ return document.getElementById(id); }
@@ -270,8 +361,10 @@ function genId(){ return Math.random().toString(36).slice(2,9); }
 function tsLabel(ts){
   return new Date(ts).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
-function toLocalDateStr(d){
-  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,"0"), String(d.getDate()).padStart(2,"0")].join("-");
+function fmtDT(dt){
+  var d = new Date(dt);
+  if(isNaN(d.getTime())) return String(dt);
+  return d.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
 }
 
 /* ── HTTP ──────────────────────────────────────────────────── */
@@ -316,13 +409,20 @@ async function loadShared(){
       return b;
     });
     log = data.log||[];
+    scheduleFixtures = data.fixtures||[];
+    herdSettings = data.settings||{};
+    renderHerdBtn();
     var t = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
     setSyncStatus("ok","✓ synced "+t);
+    checkForNotifications(bets);
     render();
+    if(showForm) populateFixtureSelect();
+    checkAutoLock();
   } catch(e){
     setSyncStatus("error", e.message);
   }
 }
+
 
 async function dispatch(body, optimisticBets, optimisticLog){
   if(optimisticBets) bets = optimisticBets;
@@ -396,7 +496,27 @@ function selectMe(name){
   me = name;
   localStorage.setItem("wc-me", name);
   renderChips();
+  renderHerdBtn();
   render();
+}
+
+/* ── Herd mode ─────────────────────────────────────────────── */
+function renderHerdBtn(){
+  var btn = gid("herd-btn");
+  if(!me){ btn.style.display="none"; return; }
+  var on = !!herdSettings[me];
+  btn.style.display="inline-block";
+  btn.textContent = "🐑 Herd: "+(on?"ON":"OFF");
+  btn.className = "herd-btn"+(on?" on":"");
+}
+
+function toggleHerd(){
+  if(!me){ alert("Choose who you are first!"); return; }
+  var newVal = !herdSettings[me];
+  herdSettings[me] = newVal;
+  renderHerdBtn();
+  var le={id:genId(), ts:Date.now(), msg:me+(newVal?" enabled":" disabled")+" Herd mode", detail:"Auto-bets the majority pick on bets you haven't picked when they lock"};
+  dispatch({action:"SET_HERD",player:me,herd:newVal,logId:le.id,ts:le.ts,logMsg:le.msg,logDetail:le.detail}, null, [le].concat(log));
 }
 
 /* ── Tabs ──────────────────────────────────────────────────── */
@@ -418,68 +538,29 @@ function updateTabLabels(){
   gid("tab-settled").textContent = "Settled ("+settled+")";
 }
 
-/* ── Fixture fetch ─────────────────────────────────────────── */
-function extractJsonArray(text){
-  var results=[], depth=0, start=-1;
-  for(var i=0;i<text.length;i++){
-    if(text[i]==="["){if(depth===0)start=i;depth++;}
-    else if(text[i]==="]"){depth--;if(depth===0&&start!==-1){try{var p=JSON.parse(text.slice(start,i+1));if(Array.isArray(p))results.push(p);}catch(e){}start=-1;}}
-  }
-  results.sort(function(a,b){return b.filter(function(x){return x&&x.home;}).length-a.filter(function(x){return x&&x.home;}).length;});
-  return results[0]||[];
-}
-
-function loadFixtures(){
-  if(fixturesLoaded) return;
-  var now = new Date();
-  var dates=[toLocalDateStr(new Date(now-3*3600000)),toLocalDateStr(now),toLocalDateStr(new Date(now+24*3600000)),toLocalDateStr(new Date(now+48*3600000))];
-  dates=dates.filter(function(d,i){return dates.indexOf(d)===i;});
-
-  gid("fix-loading").style.display="block";
-  gid("f-match").style.display="none";
-
-  fetch("https://api.anthropic.com/v1/messages",{
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model:"claude-sonnet-4-20250514", max_tokens:2000,
-      tools:[{type:"web_search_20250305",name:"web_search"}],
-      system:"You are a FIFA World Cup 2026 fixture assistant. Search for FIFA World Cup 2026 matches on "+dates.join(", ")+". End your response with a JSON array only. Format: [{\"home\":\"Team\",\"away\":\"Team\",\"kickoff\":\"HH:MM\",\"date\":\"YYYY-MM-DD\",\"competition\":\"FIFA World Cup 2026\"}]. Only FIFA World Cup 2026. If none, end with: []",
-      messages:[{role:"user",content:"FIFA World Cup 2026 matches on "+dates.join(", ")+"? End with JSON array only."}]
-    })
-  })
-  .then(function(r){return r.json();})
-  .then(function(data){
-    var text=(data.content||[]).map(function(b){return b.type==="text"?b.text:JSON.stringify(b);}).join("\n");
-    var nowMs=Date.now();
-    fixtures=extractJsonArray(text).filter(function(f){
-      if(!f.home||!f.date||!f.kickoff)return false;
-      var p=f.kickoff.split(":");
-      var koMs=new Date(f.date+"T"+String(Number(p[0])).padStart(2,"0")+":"+String(Number(p[1]||0)).padStart(2,"0")+":00").getTime();
-      return koMs>=nowMs-3*3600000&&koMs<=nowMs+48*3600000;
-    });
-    populateFixtureSelect();
-    fixturesLoaded=true;
-  })
-  .catch(function(){
-    populateFixtureSelect();
-    fixturesLoaded=true;
-  });
-}
-
+/* ── Fixture selection (from Google Sheet "Schedule" tab) ────── */
 function populateFixtureSelect(){
   gid("fix-loading").style.display="none";
   var sel=gid("f-match"); sel.style.display="block";
   while(sel.options.length>1) sel.remove(1);
-  if(fixtures.length>0){
-    var grp=document.createElement("optgroup"); grp.label="FIFA World Cup 2026";
-    fixtures.forEach(function(f){
-      var k=f.home+"|"+f.away+"|"+f.date;
-      grp.appendChild(new Option(f.home+" vs "+f.away+" · "+f.kickoff+" · "+f.date,k));
+
+  var nowMs = Date.now();
+  var upcoming = scheduleFixtures
+    .map(function(f,i){ return {f:f, idx:i, ts:new Date(f.datetime).getTime()}; })
+    .filter(function(x){ return !isNaN(x.ts) && x.ts >= nowMs - 3*3600000; })
+    .sort(function(a,b){ return a.ts-b.ts; });
+
+  if(upcoming.length>0){
+    var grp=document.createElement("optgroup"); grp.label="Schedule";
+    upcoming.forEach(function(x){
+      var f=x.f;
+      var label = f.home+" vs "+f.away+" · "+fmtDT(f.datetime)+(f.stage?" · "+f.stage:"");
+      grp.appendChild(new Option(label, String(x.idx)));
     });
-    sel.insertBefore(grp,sel.options[sel.options.length>0?sel.options.length-0:0]);
+    sel.appendChild(grp);
     sel.appendChild(new Option("Enter manually","__custom__"));
   } else {
-    sel.appendChild(new Option("No fixtures found — enter manually","__custom__"));
+    sel.appendChild(new Option("No upcoming matches in schedule — enter manually","__custom__"));
     gid("f-custom").style.display="block";
   }
 }
@@ -493,17 +574,24 @@ function toggleForm(){
   showForm=!showForm;
   gid("bet-form").style.display=showForm?"block":"none";
   gid("new-btn").textContent=showForm?"✕ Cancel":"+ Set a Line";
-  if(showForm) loadFixtures();
+  if(showForm) populateFixtureSelect();
 }
 
 function createBet(){
   if(!me){alert("Choose who you are first!");return;}
   var matchKey=gid("f-match").value, match="", kickoff="";
-  if(matchKey==="__custom__"){
+  if(matchKey==="__custom__"||matchKey===""){
     match=gid("f-custom").value.trim();
   } else {
-    var f=fixtures.find(function(x){return (x.home+"|"+x.away+"|"+x.date)===matchKey;});
-    if(f){match=f.home+" vs "+f.away;kickoff=f.kickoff+" · "+f.date+" · FIFA WC 2026";}
+    var f=scheduleFixtures[Number(matchKey)];
+    if(f){
+      match=f.home+" vs "+f.away;
+      var parts=[fmtDT(f.datetime)];
+      if(f.stage) parts.push(f.stage);
+      if(f.location) parts.push(f.location);
+      if(f.matchNum) parts.push("Match #"+f.matchNum);
+      kickoff=parts.join(" · ");
+    }
   }
   var betType=gid("f-bet-type").value.trim(), opt1=gid("f-opt1").value.trim(), opt2=gid("f-opt2").value.trim();
   var amount=parseFloat(gid("f-amount").value), deadline=gid("f-deadline").value;
@@ -521,10 +609,15 @@ function placePick(betId,option){
   if(!me){alert("Choose who you are first!");return;}
   var bet=bets.find(function(b){return b.id===betId;});
   if(!bet||bet.status!==STATUS.OPEN||me===bet.house)return;
+  if(bet.deadline && new Date(bet.deadline).getTime()<=Date.now()){
+    alert("The deadline for this bet has passed — picks are locked.");
+    checkAutoLock();
+    return;
+  }
   var ns=Object.assign({},bet.selections); ns[me]=option;
   var nb=bets.map(function(b){return b.id===betId?Object.assign({},b,{selections:ns}):b;});
   var le={id:genId(),ts:Date.now(),msg:me+' picked "'+option+'"',detail:'"'+bet.betType+'" on '+bet.match};
-  dispatch({action:"PLACE_PICK",betId:betId,player:me,pick:option,ts:le.ts,logId:le.id,logMsg:le.msg,logDetail:le.detail},nb,[le].concat(log));
+  dispatch({action:"PLACE_PICK",betId:betId,player:me,pick:option,ts:le.ts,logId:le.id,logMsg:le.msg,logDetail:le.detail,source:"manual"},nb,[le].concat(log));
 }
 
 function lockBet(betId){
@@ -595,8 +688,9 @@ function renderBetCard(bet,container){
     var pg=document.createElement("div"); pg.className="picks-grid";
     selKeys.forEach(function(m){
       var pick=bet.selections[m], won=bet.status===STATUS.SETTLED&&pick===bet.winner, lost=bet.status===STATUS.SETTLED&&pick!==bet.winner;
+      var isHerd = bet.herdPicks && bet.herdPicks[m];
       var c=document.createElement("div"); c.className="pick-chip"+(won?" win":lost?" loss":"");
-      c.innerHTML='<span class="pname">'+esc(m)+'</span><span class="psub">→'+esc(pick)+'</span>'+(won?"<span>✓</span>":lost?"<span>✗</span>":"");
+      c.innerHTML='<span class="pname">'+esc(m)+'</span><span class="psub">→'+esc(pick)+(isHerd?' 🐑':'')+'</span>'+(won?"<span>✓</span>":lost?"<span>✗</span>":"");
       pg.appendChild(c);
     });
     body.appendChild(pg);
@@ -615,7 +709,13 @@ function renderBetCard(bet,container){
       po.appendChild(b);
     });
     body.appendChild(po);
+    if(herdSettings[me]&&!myPick){
+      var hh=document.createElement("div"); hh.className="herd-hint";
+      hh.textContent="🐑 Herd is ON — if you don't pick, you'll auto-follow the majority when this locks.";
+      body.appendChild(hh);
+    }
   }
+
 
   if(isHouse){
     var ba=document.createElement("div"); ba.className="bet-actions";
@@ -713,6 +813,8 @@ function startPolling(){
 
 /* ── Init ──────────────────────────────────────────────────── */
 renderChips();
+renderHerdBtn();
+updateNotifBtn();
 if(scriptUrl){
   var sc=gid("setup-connected"); sc.style.display="block"; sc.textContent="Connected: "+scriptUrl.slice(0,60)+"...";
   loadShared();

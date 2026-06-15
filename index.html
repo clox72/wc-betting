@@ -274,6 +274,7 @@ var currentTab = "bets";
 var showForm   = false;
 var settleTarget  = null;
 var pendingWinner = {};
+var fixtureLocked = false; // true once user picks a match — blocks dropdown rebuilds until form closes
 var syncInterval  = null;
 var prevBetsById  = null; // snapshot for change detection (null until first load)
 var herdSettings  = {};   // {player: true/false}
@@ -419,7 +420,7 @@ async function loadShared(){
     // Only repopulate the fixture dropdown if no selection has been made yet —
     // once the user picks a match (or "Enter manually"), it stays put until
     // they submit, cancel, or change it themselves.
-    if(showForm && !gid("f-match").value) populateFixtureSelect();
+    if(showForm && !fixtureLocked) populateFixtureSelect();
     checkAutoLock();
   } catch(e){
     setSyncStatus("error", e.message);
@@ -573,7 +574,9 @@ function populateFixtureSelect(){
 
 
 function onMatchChange(){
-  gid("f-custom").style.display = gid("f-match").value==="__custom__"?"block":"none";
+  var v = gid("f-match").value;
+  gid("f-custom").style.display = v==="__custom__"?"block":"none";
+  fixtureLocked = (v!=="");
 }
 
 /* ── Bet actions ───────────────────────────────────────────── */
@@ -581,6 +584,7 @@ function toggleForm(){
   showForm=!showForm;
   gid("bet-form").style.display=showForm?"block":"none";
   gid("new-btn").textContent=showForm?"✕ Cancel":"+ Set a Line";
+  fixtureLocked=false;
   if(showForm) populateFixtureSelect();
 }
 

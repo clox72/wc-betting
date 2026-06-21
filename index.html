@@ -6,6 +6,8 @@
 <title>The House Always Bets — WC 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
@@ -266,7 +268,8 @@ var MEMBERS = ["Jaya","S2K","Koko","Manjo","Guo","Parag"];
 var STATUS  = {OPEN:"open", LOCKED:"locked", SETTLED:"settled"};
 
 var me         = localStorage.getItem("wc-me") || null;
-var scriptUrl  = localStorage.getItem("wc-script-url") || "";
+var DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzHkvULBLojre5vlI7J9fsk3Pq7wR84R4n5IXF7RWG1WEx4OXSV7ma_vrHSCoJnrzrLgw/exec";
+var scriptUrl  = localStorage.getItem("wc-script-url") || DEFAULT_SCRIPT_URL;
 var bets       = [];
 var log        = [];
 var scheduleFixtures = [];
@@ -290,12 +293,7 @@ function updateNotifBtn(){
 }
 
 function requestNotifPermission(){
-  if(typeof Notification==="undefined") return;
-  Notification.requestPermission().then(function(p){
-    notifPermission=p;
-    updateNotifBtn();
-    if(p==="granted") showToast("Notifications enabled","You'll be alerted for new bets and settlements.");
-  });
+  enablePushNotifications();
 }
 
 function showToast(title, body){
@@ -316,6 +314,63 @@ function notify(title, body){
   if(notifPermission==="granted"){
     try { new Notification(title, {body:body}); } catch(e){}
   }
+}
+
+/* ── Firebase Cloud Messaging (push notifications) ───────────── */
+var FCM_CONFIG = {
+  apiKey: "AIzaSyBqTCa6GVQi2OEoRHaY5836tDdqgqvzTuw",
+  authDomain: "wc-betting-c6bb4.firebaseapp.com",
+  projectId: "wc-betting-c6bb4",
+  storageBucket: "wc-betting-c6bb4.firebasestorage.app",
+  messagingSenderId: "782331354453",
+  appId: "1:782331354453:web:9d931470906ee3008be3dc"
+};
+var FCM_VAPID_KEY = "BG77zaYFgd6Ak7DWsBeDJohPe9NwazkGevo6iDIuuq77_iuXd_PjBPYY7YPqAw5Ysrl-v0lRVIoVmX3m-0QNrOc";
+var fcmMessaging = null;
+var fcmRegisteredToken = null;
+
+function initFcm(){
+  if(typeof firebase==="undefined") return; // SDK failed to load (offline, blocked, etc.)
+  try {
+    if(!firebase.apps || !firebase.apps.length) firebase.initializeApp(FCM_CONFIG);
+    if(firebase.messaging.isSupported && !firebase.messaging.isSupported()) return; // unsupported browser (e.g. iOS Safari)
+    fcmMessaging = firebase.messaging();
+    fcmMessaging.onMessage(function(payload){
+      // Foreground messages — the service worker handles background/closed-tab delivery.
+      var n = payload.notification || {};
+      showToast(n.title||"Notification", n.body||"");
+    });
+  } catch(e){ /* FCM not available in this environment — fail silently */ }
+}
+
+// Requests notification permission, registers the service worker, gets an
+// FCM token, and sends it to the Apps Script so this device can receive
+// push notifications even when the tab is closed.
+async function enablePushNotifications(){
+  if(typeof Notification==="undefined"){ return; }
+  var perm = await Notification.requestPermission();
+  notifPermission = perm;
+  updateNotifBtn();
+  if(perm!=="granted") return;
+  if(!fcmMessaging){ initFcm(); }
+  if(!fcmMessaging) return; // unsupported browser
+
+  try {
+    var registration = await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    var token = await fcmMessaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+    if(token && token!==fcmRegisteredToken){
+      fcmRegisteredToken = token;
+      if(me) registerPushToken(token);
+    }
+    showToast("Notifications enabled","You'll be alerted for new bets and settlements — even when the app is closed.");
+  } catch(e){
+    showToast("Push setup failed", e.message||"Could not enable push notifications on this device.");
+  }
+}
+
+function registerPushToken(token){
+  if(!me || !token || !scriptUrl) return;
+  wcPost(scriptUrl, {action:"REGISTER_TOKEN", player:me, token:token}).catch(function(){});
 }
 
 // Compares new bets against the previous snapshot and fires notifications
@@ -366,6 +421,13 @@ function fmtDT(dt){
   var d = new Date(dt);
   if(isNaN(d.getTime())) return String(dt);
   return d.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+// Formats a Date as "YYYY-MM-DDTHH:mm" for an <input type="datetime-local"> value,
+// using LOCAL time components (not UTC) so the displayed time matches what fmtDT shows.
+function toDatetimeLocalStr(d){
+  var y=d.getFullYear(), mo=String(d.getMonth()+1).padStart(2,"0"), da=String(d.getDate()).padStart(2,"0");
+  var hh=String(d.getHours()).padStart(2,"0"), mm=String(d.getMinutes()).padStart(2,"0");
+  return y+"-"+mo+"-"+da+"T"+hh+":"+mm;
 }
 
 /* ── HTTP ──────────────────────────────────────────────────── */
@@ -502,6 +564,7 @@ function selectMe(name){
   renderChips();
   renderHerdBtn();
   render();
+  if(fcmRegisteredToken) registerPushToken(fcmRegisteredToken);
 }
 
 /* ── Herd mode ─────────────────────────────────────────────── */
@@ -577,6 +640,26 @@ function onMatchChange(){
   var v = gid("f-match").value;
   gid("f-custom").style.display = v==="__custom__"?"block":"none";
   fixtureLocked = (v!=="");
+  applyDefaultDeadline(v);
+}
+
+// Auto-fills the Pick Deadline field based on the selected match's kickoff time.
+// Falls back to "now + 2 hours" if no valid kickoff time is available
+// (manual entry, or a fixture with an unparseable datetime).
+function applyDefaultDeadline(matchKey){
+  if(matchKey===""){ return; } // no selection yet — leave deadline untouched
+  var dt = null;
+  if(matchKey!=="__custom__"){
+    var f = scheduleFixtures[Number(matchKey)];
+    if(f){
+      var d = new Date(f.datetime);
+      if(!isNaN(d.getTime())) dt = d;
+    }
+  }
+  if(!dt){
+    dt = new Date(Date.now() + 2*3600000); // current time + 2 hours
+  }
+  gid("f-deadline").value = toDatetimeLocalStr(dt);
 }
 
 /* ── Bet actions ───────────────────────────────────────────── */
@@ -826,6 +909,8 @@ function startPolling(){
 renderChips();
 renderHerdBtn();
 updateNotifBtn();
+initFcm();
+if(notifPermission==="granted"){ enablePushNotifications(); } // silently restores token if perm already granted
 if(scriptUrl){
   var sc=gid("setup-connected"); sc.style.display="block"; sc.textContent="Connected: "+scriptUrl.slice(0,60)+"...";
   loadShared();
